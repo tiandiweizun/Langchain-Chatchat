@@ -103,10 +103,10 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
     default_model = api.get_default_llm_model()[0]
 
     if not chat_box.chat_inited:
-        st.toast(
-            f"欢迎使用 [`Langchain-Chatchat`](https://github.com/chatchat-space/Langchain-Chatchat) ! \n\n"
-            f"当前运行的模型`{default_model}`, 您可以开始提问了."
-        )
+        # st.toast(
+        #     f"欢迎使用 [`Langchain-Chatchat`](https://github.com/chatchat-space/Langchain-Chatchat) ! \n\n"
+        #     f"当前运行的模型`{default_model}`, 您可以开始提问了."
+        # )
         chat_box.init_session()
 
     # 弹出自定义命令帮助信息
@@ -126,39 +126,39 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
         chat_box.use_chat_name(conversation_name)
         conversation_id = st.session_state["conversation_ids"][conversation_name]
 
-        def on_mode_change():
-            mode = st.session_state.dialogue_mode
-            text = f"已切换到 {mode} 模式。"
-            if mode == "知识库问答":
-                cur_kb = st.session_state.get("selected_kb")
-                if cur_kb:
-                    text = f"{text} 当前知识库： `{cur_kb}`。"
-            st.toast(text)
-
-        dialogue_modes = ["LLM 对话",
-                          "知识库问答",
-                          "文件对话",
-                          "搜索引擎问答",
-                          "自定义Agent问答",
-                          ]
-        dialogue_mode = st.selectbox("请选择对话模式：",
-                                     dialogue_modes,
-                                     index=0,
-                                     on_change=on_mode_change,
-                                     key="dialogue_mode",
-                                     )
-
-        def on_llm_change():
-            if llm_model:
-                config = api.get_model_config(llm_model)
-                if not config.get("online_api"):  # 只有本地model_worker可以切换模型
-                    st.session_state["prev_llm_model"] = llm_model
-                st.session_state["cur_llm_model"] = st.session_state.llm_model
-
-        def llm_model_format_func(x):
-            if x in running_models:
-                return f"{x} (Running)"
-            return x
+        # def on_mode_change():
+        #     mode = st.session_state.dialogue_mode
+        #     text = f"已切换到 {mode} 模式。"
+        #     if mode == "知识库问答":
+        #         cur_kb = st.session_state.get("selected_kb")
+        #         if cur_kb:
+        #             text = f"{text} 当前知识库： `{cur_kb}`。"
+        #     st.toast(text)
+        #
+        # dialogue_modes = ["LLM 对话",
+        #                   "知识库问答",
+        #                   "文件对话",
+        #                   "搜索引擎问答",
+        #                   "自定义Agent问答",
+        #                   ]
+        # dialogue_mode = st.selectbox("请选择对话模式：",
+        #                              dialogue_modes,
+        #                              index=0,
+        #                              on_change=on_mode_change,
+        #                              key="dialogue_mode",
+        #                              )
+        #
+        # def on_llm_change():
+        #     if llm_model:
+        #         config = api.get_model_config(llm_model)
+        #         if not config.get("online_api"):  # 只有本地model_worker可以切换模型
+        #             st.session_state["prev_llm_model"] = llm_model
+        #         st.session_state["cur_llm_model"] = st.session_state.llm_model
+        #
+        # def llm_model_format_func(x):
+        #     if x in running_models:
+        #         return f"{x} (Running)"
+        #     return x
 
         running_models = list(api.list_running_models())
         available_models = []
@@ -177,13 +177,14 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
             index = llm_models.index(cur_llm_model)
         else:
             index = 0
-        llm_model = st.selectbox("选择LLM模型：",
-                                 llm_models,
-                                 index,
-                                 format_func=llm_model_format_func,
-                                 on_change=on_llm_change,
-                                 key="llm_model",
-                                 )
+        # llm_model = st.selectbox("选择LLM模型：",
+        #                          llm_models,
+        #                          index,
+        #                          format_func=llm_model_format_func,
+        #                          on_change=on_llm_change,
+        #                          key="llm_model",
+        #                          )
+        llm_model=llm_models[0]
         if (st.session_state.get("prev_llm_model") != llm_model
                 and not is_lite
                 and not llm_model in config_models.get("online", {})
@@ -205,22 +206,23 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
             "知识库问答": "knowledge_base_chat",
             "文件对话": "knowledge_base_chat",
         }
+        dialogue_mode = "知识库问答"
         prompt_templates_kb_list = list(PROMPT_TEMPLATES[index_prompt[dialogue_mode]].keys())
         prompt_template_name = prompt_templates_kb_list[0]
         if "prompt_template_select" not in st.session_state:
             st.session_state.prompt_template_select = prompt_templates_kb_list[0]
 
-        def prompt_change():
-            text = f"已切换为 {prompt_template_name} 模板。"
-            st.toast(text)
-
-        prompt_template_select = st.selectbox(
-            "请选择Prompt模板：",
-            prompt_templates_kb_list,
-            index=0,
-            on_change=prompt_change,
-            key="prompt_template_select",
-        )
+        # def prompt_change():
+        #     text = f"已切换为 {prompt_template_name} 模板。"
+        #     st.toast(text)
+        #
+        # prompt_template_select = st.selectbox(
+        #     "请选择Prompt模板：",
+        #     prompt_templates_kb_list,
+        #     index=0,
+        #     on_change=prompt_change,
+        #     key="prompt_template_select",
+        # )
         prompt_template_name = st.session_state.prompt_template_select
         temperature = st.slider("Temperature：", 0.0, 2.0, TEMPERATURE, 0.05)
         history_len = st.number_input("历史对话轮数：", 0, 20, HISTORY_LEN)

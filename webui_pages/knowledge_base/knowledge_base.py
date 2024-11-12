@@ -3,7 +3,7 @@ from webui_pages.utils import *
 from st_aggrid import AgGrid, JsCode
 from st_aggrid.grid_options_builder import GridOptionsBuilder
 import pandas as pd
-from server.knowledge_base.utils import get_file_path, LOADER_DICT
+from server.knowledge_base.utils import get_file_path, LOADER_DICT, SUPPORTED_EXTS
 from server.knowledge_base.kb_service.base import get_kb_details, get_kb_file_details
 from typing import Literal, Dict, Tuple
 from configs import (kbs_config,
@@ -12,6 +12,9 @@ from configs import (kbs_config,
 from server.utils import list_embed_models, list_online_embed_models
 import os
 import time
+import tkinter as tk
+from tkinter import filedialog
+from pathlib import Path
 
 cell_renderer = JsCode("""function(params) {if(params.value==true){return '✓'}else{return '×'}}""")
 
@@ -90,12 +93,12 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
                 placeholder="新知识库名称，不支持中文命名",
                 key="kb_name",
             )
-            kb_info = st.text_input(
-                "知识库简介",
-                placeholder="知识库简介，方便Agent查找",
-                key="kb_info",
-            )
-
+            # kb_info = st.text_input(
+            #     "知识库简介",
+            #     placeholder="知识库简介，方便Agent查找",
+            #     key="kb_info",
+            # )
+            kb_info = ""
             cols = st.columns(2)
 
             vs_types = list(kbs_config.keys())
@@ -140,23 +143,54 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
                 st.toast(ret.get("msg", " "))
                 st.session_state["selected_kb_name"] = kb_name
                 st.session_state["selected_kb_info"] = kb_info
+                api.update_kb_info(kb_name, kb_info)
                 st.rerun()
 
     elif selected_kb:
         kb = selected_kb
-        st.session_state["selected_kb_info"] = kb_list[kb]['kb_info']
-        # 上传文件
-        files = st.file_uploader("上传知识文件：",
-                                 [i for ls in LOADER_DICT.values() for i in ls],
-                                 accept_multiple_files=True,
-                                 )
-        kb_info = st.text_area("请输入知识库介绍:", value=st.session_state["selected_kb_info"], max_chars=None,
-                               key=None,
-                               help=None, on_change=None, args=None, kwargs=None)
+        st.session_state.selected_kb_info = kb_list[kb]['kb_info']
+        on = st.toggle("上传目录", value=False)
+        st.session_state.files1 = []
+        if on:
+            from configs.model_config import debug
+            if debug:
+                def select_folder():
+                    root = tk.Tk()
+                    root.withdraw()
+                    root.wm_attributes('-topmost', 1)
+                    folder_path = filedialog.askdirectory(master=root)
+                    root.destroy()
+                    return folder_path
 
-        if kb_info != st.session_state["selected_kb_info"]:
-            st.session_state["selected_kb_info"] = kb_info
-            api.update_kb_info(kb, kb_info)
+                folder_select_button = st.button("选择目录", type="primary")
+                if folder_select_button:
+                    files1 = []
+                    selected_folder_path = select_folder()
+                    st.session_state.selected_kb_info = selected_folder_path
+                    api.update_kb_info(kb, selected_folder_path)
+                    for item in Path(selected_folder_path).rglob('*'):
+                        # if item.is_file() and item.suffix in SUPPORTED_EXTS and not item.name.startswith("~$"):
+                        #     files1.append(item)
+                        if item.is_file() and item.suffix in [".docx", ".doc"] and not item.name.startswith("~$"):
+                            files1.append(str(item.absolute()))
+                    st.session_state.files1 = files1
+                    st.write(f"共找到 {len(files1)} 个文件")
+            else:
+                st.toast("暂时不支持上传文件夹")
+                st.rerun()
+        else:
+            # 上传文件
+            files2 = (st.file_uploader("上传知识文件：",
+                                       [i for ls in LOADER_DICT.values() for i in ls],
+                                       accept_multiple_files=True,
+                                       ))
+
+            # kb_info = st.text_area("请输入知识库介绍:", value=st.session_state["selected_kb_info"], max_chars=None,
+            #                        key=None,
+            #                        help=None, on_change=None, args=None, kwargs=None)
+            # if kb_info != st.session_state["selected_kb_info"]:
+            #     st.session_state["selected_kb_info"] = kb_info
+            #     api.update_kb_info(kb, kb_info)
 
         # with st.sidebar:
         with st.expander(
@@ -169,7 +203,7 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
             cols[2].write("")
             cols[2].write("")
             zh_title_enhance = cols[2].checkbox("开启中文标题加强", ZH_TITLE_ENHANCE)
-
+        files = st.session_state.files1 if on else files2
         if st.button(
                 "添加文件到知识库",
                 # use_container_width=True,
@@ -343,7 +377,7 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
             gb.configure_column("to_del", "删除", editable=True, width=50, wrapHeaderText=True,
                                 cellEditor="agCheckboxCellEditor", cellRender="agCheckboxCellRenderer")
             # 启用分页
-            gb.configure_pagination(enabled=True, paginationAutoPageSize=False, paginationPageSize=10) 
+            gb.configure_pagination(enabled=True, paginationAutoPageSize=False, paginationPageSize=10)
             gb.configure_selection()
             edit_docs = AgGrid(df, gb.build(), fit_columns_on_grid_load=True)
 
